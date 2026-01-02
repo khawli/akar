@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum LeaseStatus {
+  ACTIVE
+  ENDED
+}
+
+enum InstallmentStatus {
+  UNPAID
+  PAID
+}
+
+enum DocumentType {
+  RECEIPT
+  NOTICE
+  TENANT_NOTICE
+  LANDLORD_NOTICE
+  REMINDER
+  TERMINATION
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users     User[]
+  properties Property[]
+  tenants   Tenant[]
+  leases    Lease[]
+  documents Document[]
+  landlordProfileJson Json?
+}
+
+model User {
+  id        String   @id @default(cuid())
+  orgId     String
+  email     String   @unique
+  name      String?
+  passwordHash String
+  createdAt DateTime @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id])
+}
+
+model Property {
+  id        String   @id @default(cuid())
+  orgId     String
+  label     String
+  addressLine String?
+  city      String?
+  country   String?  @default("MA")
+  notes     String?
+  createdAt DateTime @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id])
+  units     Unit[]
+}
+
+model Unit {
+  id        String   @id @default(cuid())
+  propertyId String
+  label     String
+  type      String?  // apt/maison
+  surface   Float?
+  createdAt DateTime @default(now())
+
+  property  Property @relation(fields: [propertyId], references: [id])
+  leases    Lease[]
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  orgId     String
+  fullName  String
+  idNumber  String?
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id])
+  leases    Lease[]
+}
+
+model Lease {
+  id        String   @id @default(cuid())
+  orgId     String
+  unitId    String
+  tenantId  String
+
+  startDate DateTime
+  endDate   DateTime?
+  rentAmount Int
+  currency  String   @default("MAD")
+  paymentDay Int      @default(1) // 1..28
+  status    LeaseStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id])
+  unit      Unit @relation(fields: [unitId], references: [id])
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+
+  installments RentInstallment[]
+  documents    Document[]
+
+  @@index([orgId])
+  @@index([unitId])
+  @@index([tenantId])
+}
+
+model RentInstallment {
+  id        String   @id @default(cuid())
+  leaseId   String
+  period    String   // "2026-01"
+  dueDate   DateTime
+  amount    Int
+  status    InstallmentStatus @default(UNPAID)
+  paidAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  lease     Lease @relation(fields: [leaseId], references: [id])
+  documents Document[]
+
+  @@index([leaseId])
+  @@unique([leaseId, period])
+}
+
+model Document {
+  id            String   @id @default(cuid())
+  orgId         String
+  type          DocumentType
+  version       String   @default("1.0")
+  payloadJson   Json
+  pdfUrl        String?
+  createdAt     DateTime @default(now())
+
+  leaseId       String?
+  installmentId String?
+
+  org           Organization @relation(fields: [orgId], references: [id])
+  lease         Lease? @relation(fields: [leaseId], references: [id])
+  installment   RentInstallment? @relation(fields: [installmentId], references: [id])
+  storagePath String? // chemin fichier sur disque, ex: storage/docs/RC-xxx.pdf
+
+
+  @@index([orgId])
+  @@unique([installmentId, type])
+}
