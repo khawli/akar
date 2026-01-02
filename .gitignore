@@ -27,3 +27,8 @@ Thumbs.db
 
 # Prisma / DB generated
 prisma/dev.db*
+
+# Generated docs / local storage
+web/public/generated/
+web/storage/
+
