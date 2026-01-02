@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/require-session";
-import { getDocumentsDir } from "@/lib/documents/storage";
 import fs from "fs";
 import path from "path";
 import archiver from "archiver";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(
   req: Request,
@@ -28,10 +30,29 @@ export async function GET(
 
   // 2) Charger documents (on prend ceux avec storagePath)
   const docs = await prisma.document.findMany({
-    where: { orgId: session.orgId, leaseId },
+    where: {
+      orgId: session.orgId,
+      // ... tes autres conditions
+      leaseId: { not: null }, // ✅ empêche string|null
+    },
+    select: {
+      id: true,
+      type: true,
+      createdAt: true,
+      storagePath: true,
+      leaseId: true, // ✅ indispensable
+    },
     orderBy: { createdAt: "asc" },
-    select: { id: true, type: true, createdAt: true, storagePath: true },
   });
+
+  const docsByLease = new Map<string, typeof docs>();
+
+  for (const d of docs) {
+    if (!d.leaseId) continue; // ✅ garde-fou
+    const arr = docsByLease.get(d.leaseId) ?? [];
+    arr.push(d);
+    docsByLease.set(d.leaseId, arr);
+}
 
   // 3) Construire un nom de fichier propre
   const safe = (s: string) => (s || "").toString().trim().replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 80);

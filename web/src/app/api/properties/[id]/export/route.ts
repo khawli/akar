@@ -3,6 +3,9 @@ import { requireSession } from "@/lib/auth/require-session";
 import fs from "fs";
 import archiver from "archiver";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const safe = (s: string) => (s || "").toString().trim().replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 80);
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
