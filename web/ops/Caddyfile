@@ -1,7 +1,6 @@
-{$APP_BASE_URL} {
+{$DOMAIN} {
   encode zstd gzip
 
-  # Security headers
   header {
     Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
     X-Content-Type-Options "nosniff"
