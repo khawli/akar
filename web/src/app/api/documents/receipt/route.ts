@@ -7,6 +7,9 @@ import fs from "fs";
 import path from "path";
 import { getDocumentsDir } from "@/lib/documents/storage";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const Schema = z.object({
   installmentId: z.string().min(1),
 });

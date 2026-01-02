@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/require-session";
 import fs from "fs";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }

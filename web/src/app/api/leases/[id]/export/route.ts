@@ -32,26 +32,27 @@ export async function GET(
   const docs = await prisma.document.findMany({
     where: {
       orgId: session.orgId,
-      // ... tes autres conditions
-      leaseId: { not: null }, // ✅ empêche string|null
+      propertyId,            // garde si tu l’as
+      leaseId: { not: null } // ✅ clé : supprime les nulls
     },
+    orderBy: { createdAt: "asc" },
     select: {
       id: true,
       type: true,
       createdAt: true,
       storagePath: true,
-      leaseId: true, // ✅ indispensable
+      leaseId: true,         // ✅ clé : on veut leaseId pour grouper
     },
-    orderBy: { createdAt: "asc" },
   });
 
   const docsByLease = new Map<string, typeof docs>();
 
   for (const d of docs) {
-    if (!d.leaseId) continue; // ✅ garde-fou
+    if (!d.leaseId) continue; // ✅ TS + robustesse
     const arr = docsByLease.get(d.leaseId) ?? [];
     arr.push(d);
     docsByLease.set(d.leaseId, arr);
+  }
 }
 
   // 3) Construire un nom de fichier propre

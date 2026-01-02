@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma";
 import fs from "fs";
 import path from "path";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const docsDir = process.env.DOCUMENTS_DIR || path.join(process.cwd(), "storage", "docs");
 
