@@ -42,7 +42,8 @@ export async function POST(req: Request) {
   const user = created.users[0];
 
   const token = await signSession({ userId: user.id, orgId: created.id, email: user.email });
-  cookies().set(sessionCookieName(), token, sessionCookieOptions());
+  const cookieStore = await cookies();
+  cookieStore.set(sessionCookieName(), token, sessionCookieOptions());
 
   return Response.json({ ok: true, user: { id: user.id, email: user.email }, org: { id: created.id, name: created.name } });
 }
