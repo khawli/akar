@@ -35,10 +35,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // Documents de tous les baux
   const leaseIds = leases.map((l) => l.id);
   const docs = await prisma.document.findMany({
-    where: { orgId: session.orgId, leaseId: { in: leaseIds } },
+    where: { orgId: session.orgId, leaseId: { in: leaseIds, not: null } },
     orderBy: { createdAt: "asc" },
     select: { id: true, type: true, leaseId: true, createdAt: true, storagePath: true },
   });
+
 
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
@@ -51,12 +52,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const zipName = `property-${safe(property.label)}-${property.id.slice(-6)}.zip`;
 
   // Group docs by lease
-  const docsByLease = new Map<string, typeof docs>();
+  const docsByLease = new Map<string, Array<(typeof docs)[number]>>();
+
   for (const d of docs) {
+    if (!d.leaseId) continue; // ✅ évite string | null
     const arr = docsByLease.get(d.leaseId) ?? [];
     arr.push(d);
     docsByLease.set(d.leaseId, arr);
   }
+
 
   for (const lease of leases) {
     const folder = `leases/${safe(`${lease.unit.label}-${lease.tenant.fullName}`)}-${lease.id.slice(-6)}`;
