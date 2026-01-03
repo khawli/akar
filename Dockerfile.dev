@@ -1,0 +1,31 @@
+# syntax=docker/dockerfile:1.7
+ARG NODE_IMAGE=node:24-bookworm-slim
+ARG PNPM_VERSION=10.27.0
+
+FROM ${NODE_IMAGE}
+
+WORKDIR /app
+
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates openssl dumb-init \
+  && rm -rf /var/lib/apt/lists/*
+
+# pnpm available inside container (no "pnpm: not found")
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+
+# Install deps
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# App source
+COPY . .
+
+EXPOSE 3000
+ENTRYPOINT ["dumb-init", "--"]
+
+# In dev we bootstrap DB schema automatically (idempotent)
+# db push = MVP-friendly (no migration drift blocking dev startup)
+CMD ["sh", "-lc", "pnpm prisma generate && pnpm prisma db push && pnpm dev -H 0.0.0.0 -p 3000"]

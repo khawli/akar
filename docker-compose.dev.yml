@@ -1,55 +1,92 @@
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: akar_postgres_dev
+    env_file: .env.dev
     environment:
-      POSTGRES_DB: akar
-      POSTGRES_USER: akar
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     networks:
       - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
     restart: unless-stopped
 
-  web:
+  migrate:
     build:
       context: ./web
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
+      args:
+        PNPM_VERSION: ${PNPM_VERSION}
+    image: akar-web-dev
+    container_name: akar_migrate_dev
+    env_file: .env.dev
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    command: sh -lc "pnpm prisma migrate deploy && pnpm prisma generate"
+    restart: "no"
+
+  web:
+    image: akar-web-dev
+    container_name: akar_web_dev
+    env_file: .env.dev
+    environment:
+      NODE_ENV: development
       APP_BASE_URL: ${APP_BASE_URL}
       SESSION_SECRET: ${SESSION_SECRET}
-      DATABASE_URL: postgresql://akar:${POSTGRES_PASSWORD}@postgres:5432/akar?schema=public
+      DATABASE_URL: ${DATABASE_URL}
       DOCUMENTS_DIR: /data/docs
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
     volumes:
-      - docs:/data/docs
+      - ./web:/app
+      - web_node_modules_dev:/app/node_modules
+      - docs_dev:/data/docs
     depends_on:
-      - postgres
+      migrate:
+        condition: service_completed_successfully
     networks:
       - internal
       - edge
     restart: unless-stopped
+    command: sh -lc "pnpm dev -p 3000"
 
   caddy:
     image: caddy:2-alpine
+    container_name: akar_caddy_dev
     ports:
       - "80:80"
-      - "443:443"
     volumes:
-      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - ./web/ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data_dev:/data
+      - caddy_config_dev:/config
     depends_on:
-      - web
+      web:
+        condition: service_started
     networks:
       - edge
     restart: unless-stopped
 
 volumes:
-  pgdata:
-  docs:
-  caddy_data:
-  caddy_config:
+  pgdata_dev:
+  docs_dev:
+  web_node_modules_dev:
+  caddy_data_dev:
+  caddy_config_dev:
 
 networks:
   internal:

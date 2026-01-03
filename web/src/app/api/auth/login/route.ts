@@ -28,7 +28,11 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "INVALID_CREDENTIALS" }, { status: 401 });
   }
 
-    const token = await signSession({ userId: user.id, orgId: user.orgId, email: user.email });
+  if (!user.orgId) {
+    return Response.json({ ok: false, error: "NO_ORG" }, { status: 403 });
+  }
+
+    const token = await signSession({ userId: user.id, orgId: user.orgId ?? undefined, email: user.email });
 
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,

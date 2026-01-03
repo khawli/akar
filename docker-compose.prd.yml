@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: akar_postgres_prd
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata_prd:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        PNPM_VERSION: ${PNPM_VERSION}
+    image: akar-web-prd
+    container_name: akar_web_prd
+    environment:
+      NODE_ENV: production
+      APP_BASE_URL: ${APP_BASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      DATABASE_URL: ${DATABASE_URL}
+      DOCUMENTS_DIR: ${DOCUMENTS_DIR}
+    volumes:
+      - docs_prd:${DOCUMENTS_DIR}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: akar_caddy_prd
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./web/ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data_prd:/data
+      - caddy_config_prd:/config
+    depends_on:
+      web:
+        condition: service_started
+    networks:
+      - internal
+      - edge
+    restart: unless-stopped
+
+volumes:
+  pgdata_prd:
+  docs_prd:
+  caddy_data_prd:
+  caddy_config_prd:
+
+networks:
+  internal:
+    internal: true
+  edge:

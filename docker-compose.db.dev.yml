@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: akar_postgres_dev
+    environment:
+      POSTGRES_DB: akar_dev
+      POSTGRES_USER: akar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata_dev:

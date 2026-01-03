@@ -11,13 +11,17 @@ function getSecretKey() {
 
 export type SessionPayload = {
   userId: string;
-  orgId: string;
+  orgId?: string;
   email: string;
 };
 
-export async function signSession(payload: SessionPayload) {
+export type SignSessionInput = Omit<SessionPayload, "orgId"> & { orgId?: string | null };
+
+export async function signSession(payload: SignSessionInput) {
   const now = Math.floor(Date.now() / 1000);
-  return new SignJWT(payload)
+  const { orgId, ...rest } = payload;
+  const tokenPayload = orgId ? { ...rest, orgId } : rest;
+  return new SignJWT(tokenPayload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt(now)
     .setExpirationTime(now + TTL_SECONDS)

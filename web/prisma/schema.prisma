@@ -2,9 +2,18 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum UserRole {
+  OWNER
+  AGENT
+  ACCOUNTANT
+  VIEWER
+}
+
 datasource db {
   provider = "postgresql"
 }
+
+
 
 enum LeaseStatus {
   ACTIVE
@@ -36,17 +45,40 @@ model Organization {
   leases    Lease[]
   documents Document[]
   landlordProfileJson Json?
+
+  invites   OrgInvite[]
 }
 
 model User {
   id        String   @id @default(cuid())
-  orgId     String
   email     String   @unique
-  name      String?
   passwordHash String
-  createdAt DateTime @default(now())
+  orgId     String
+  role      UserRole @default(VIEWER)
 
+  invitesCreated OrgInvite[] @relation("InviteCreator")
   org       Organization @relation(fields: [orgId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OrgInvite {
+  id         String   @id @default(cuid())
+  orgId      String
+  email      String
+  role       UserRole
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+
+  creator User @relation("InviteCreator", fields: [createdByUserId], references: [id])
+  createdByUserId String
+  createdAt DateTime @default(now())
+  org        Organization @relation(fields: [orgId], references: [id])
+  @@index([orgId])
+  @@index([email])
+  @@index([createdByUserId])
 }
 
 model Property {
